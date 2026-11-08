@@ -5,6 +5,14 @@ import { api } from "../lib/api";
 import { useAuth } from "../store/useAuth";
 import { useGame } from "../store/useGame";
 
+const DEFAULT_CATEGORIES = [
+    { id: "bollywood-modern", label: "Modern Bollywood" },
+    { id: "bollywood-90s", label: "90s Bollywood" },
+    { id: "bollywood-classics", label: "Bollywood Classics" },
+    { id: "global-pop", label: "Global Pop" },
+    { id: "hip-hop", label: "Hip-Hop" },
+];
+
 const MODES = [
     { id: "classic", label: "Classic", desc: "5 songs, ranked" },
     { id: "endless", label: "Endless", desc: "Until you miss, ranked" },
@@ -15,12 +23,20 @@ export default function Home() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { start, phase, error } = useGame();
-    const [categories, setCategories] = useState([]);
+    const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
     const [category, setCategory] = useState("bollywood-modern");
     const [mode, setMode] = useState("classic");
 
     useEffect(() => {
-        api.get("/songs/categories").then(({ data }) => setCategories(data.categories));
+        api.get("/songs/categories")
+            .then(({ data }) => {
+                if (data && Array.isArray(data.categories) && data.categories.length > 0) {
+                    setCategories(data.categories);
+                }
+            })
+            .catch(() => {
+                // Keep default categories if backend is waking up
+            });
     }, []);
 
     const play = async () => {

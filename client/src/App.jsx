@@ -11,7 +11,16 @@ export default function App() {
     const { fetchMe, loading } = useAuth();
     useEffect(() => { fetchMe(); }, [fetchMe]);
 
-    if (loading) return <p className="p-6 text-zinc-400">Loading…</p>;
+    if (loading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-100">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                    <p className="text-sm text-zinc-400">Loading Guess the Song…</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-zinc-950 text-zinc-100">
