@@ -68,6 +68,7 @@ Thumbs.db
 *.pid
 *.seed
 *.pid.lock
+*.m4a
 
 # Test Coverage
 coverage/
@@ -117,6 +118,7 @@ Thumbs.db
 *.pid
 *.seed
 *.pid.lock
+*.m4a
 
 # Test Coverage
 coverage/

@@ -1,34 +1,28 @@
 // client/src/App.jsx
-import { useEffect, useState } from "react";
-import { api } from "./lib/api";
-import LoginButton from "./components/LoginButton";
+import { useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
+import { useAuth } from "./store/useAuth";
+import Header from "./components/Header";
+import Home from "./pages/Home";
+import Play from "./pages/Play";
+import Profile from "./pages/Profile";
 
 export default function App() {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { fetchMe, loading } = useAuth();
+    useEffect(() => { fetchMe(); }, [fetchMe]);
 
-    // Runs once when the app loads
-    useEffect(() => {
-        api
-            .get("/auth/me")
-            .then(({ data }) => setUser(data.user))   // cookie valid: restore session
-            .catch(() => setUser(null))                // 401: not logged in
-            .finally(() => setLoading(false));
-    }, []);
+    if (loading) return <p className="p-6 text-zinc-400">Loading…</p>;
 
-    const logout = async () => {
-        await api.post("/auth/logout");
-        setUser(null);
-    };
-
-    if (loading) return <p>Loading...</p>;
-
-    return user ? (
-        <div>
-            <p>Welcome, {user.name}!</p>
-            <button onClick={logout}>Logout</button>
+    return (
+        <div className="min-h-screen bg-zinc-950 text-zinc-100">
+            <div className="mx-auto max-w-xl p-4">
+                <Header />
+                <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/play" element={<Play />} />
+                    <Route path="/profile" element={<Profile />} />
+                </Routes>
+            </div>
         </div>
-    ) : (
-        <LoginButton onLogin={setUser} />
     );
 }

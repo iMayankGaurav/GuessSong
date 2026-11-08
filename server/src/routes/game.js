@@ -38,6 +38,7 @@ async function loadGame(req, res) {
 async function advanceStage(game, r, res) {
     if (r.stage >= STAGES.length - 1) {
         r.status = "failed";
+        r.endedAt = new Date();
         r.points = 0;
         game.streak = 0;
         await game.save();
@@ -55,10 +56,11 @@ router.post("/start", optionalAuth, async (req, res) => {
         const category = req.body?.category || "bollywood-modern";
         if (!Object.hasOwn(CATEGORIES, category))
             return res.status(400).json({ error: "Unknown category" });
-        const mode = req.body?.mode === "endless" ? "endless" : "classic";
+        const rawMode = req.body?.mode;
+        const mode = rawMode === "endless" ? "endless" : rawMode === "casual" ? "casual" : "classic";
 
         const pool = await getPool(category);
-        const total = Math.min(mode === "endless" ? ROUNDS_ENDLESS_MAX : ROUNDS_CLASSIC, pool.length);
+        const total = Math.min(mode === "classic" ? ROUNDS_CLASSIC : ROUNDS_ENDLESS_MAX, pool.length);
         if (total < ROUNDS_CLASSIC) return res.status(422).json({ error: "Not enough playable tracks" });
 
         const game = await Game.create({
@@ -128,6 +130,7 @@ router.post("/:token/guess", async (req, res) => {
         const elapsedSec = (Date.now() - r.stageStartedAt.getTime()) / 1000;
         const points = calcPoints({ stage: r.stage, elapsedSec, streakBefore: game.streak });
         r.status = "solved";
+        r.endedAt = new Date();
         r.points = points;
         game.totalScore += points;
         game.streak += 1;
@@ -162,6 +165,41 @@ router.post("/:token/next", async (req, res) => {
         const r = game.rounds[game.current];
         if (r.status === "playing") return res.status(409).json({ error: "Round not finished" });
 
+        // Casual mode: a miss never ends the session; replenish tracks when fewer than 3 remain
+        if (game.mode === "casual") {
+            const unplayed = game.rounds.length - 1 - game.current;
+            if (unplayed < 3) {
+                try {
+                    const pool = await getPool(game.source);
+                    const usedIds = new Set(game.rounds.map((x) => String(x.trackId)));
+                    let candidates = pool.filter((t) => !usedIds.has(String(t.id)));
+                    if (candidates.length === 0) {
+                        const lastTrackId = String(r.trackId);
+                        candidates = pool.filter((t) => String(t.id) !== lastTrackId);
+                    }
+                    const picked = pickRandom(candidates, Math.min(20, candidates.length));
+                    for (const t of picked) {
+                        game.rounds.push({
+                            trackId: t.id,
+                            title: t.title,
+                            artist: t.artist,
+                            cover: t.cover,
+                            previewUrl: t.previewUrl,
+                        });
+                    }
+                } catch (err) {
+                    console.error("Casual pool replenish error:", err);
+                }
+            }
+
+            if (game.current < game.rounds.length - 1) {
+                game.current += 1;
+                game.rounds[game.current].stageStartedAt = new Date();
+                await game.save();
+                return res.json({ finished: false, ...view(game) });
+            }
+        }
+
         const endlessOver = game.mode === "endless" && r.status === "failed";
         if (!endlessOver && game.current < game.rounds.length - 1) {
             game.current += 1;
@@ -172,7 +210,7 @@ router.post("/:token/next", async (req, res) => {
 
         game.status = "finished";
         await game.save();
-        if (game.userId) {
+        if (game.userId && game.mode !== "casual") {
             await User.updateOne(
                 { _id: game.userId },
                 { $max: { highScore: game.totalScore, maxStreak: game.maxStreak }, $inc: { totalGames: 1 } }
@@ -180,7 +218,7 @@ router.post("/:token/next", async (req, res) => {
         }
         res.json({
             finished: true,
-            saved: Boolean(game.userId),
+            saved: Boolean(game.userId && game.mode !== "casual"),
             totalScore: game.totalScore,
             maxStreak: game.maxStreak,
             rounds: game.rounds
@@ -190,6 +228,34 @@ router.post("/:token/next", async (req, res) => {
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: "Next failed" });
+    }
+});
+
+// End casual session
+router.post("/:token/end", async (req, res) => {
+    try {
+        const game = await loadGame(req, res);
+        if (!game) return;
+        if (game.mode !== "casual") {
+            return res.status(400).json({ error: "End session is only allowed for casual mode" });
+        }
+
+        game.status = "finished";
+        await game.save();
+
+        res.json({
+            finished: true,
+            casual: true,
+            saved: false,
+            totalScore: game.totalScore,
+            maxStreak: game.maxStreak,
+            rounds: game.rounds
+                .filter((x) => x.status !== "playing")
+                .map((x) => ({ ...reveal(x), solved: x.status === "solved", stage: x.stage, points: x.points })),
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "End session failed" });
     }
 });
 

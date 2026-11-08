@@ -10,11 +10,15 @@ import { Server } from "socket.io";
 import authRoutes from "./routes/auth.js";
 import gameRoutes from "./routes/game.js";
 import songRoutes from "./routes/songs.js";
+import profileRoutes from "./routes/profile.js";
 
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+
+const clientUrl = (process.env.CLIENT_URL || "http://localhost:5173").replace(/\/$/, "");
+app.use(cors({ origin: clientUrl, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -23,12 +27,13 @@ app.get("/api/health", (_, res) => res.json({ ok: true }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_URL, credentials: true },
+  cors: { origin: clientUrl, credentials: true },
 });
 // registerPartySockets(io);
 app.use("/api/auth", authRoutes);
 app.use("/api/game", gameRoutes);
 app.use("/api/songs", songRoutes);
+app.use("/api/profile", profileRoutes);
 
 try {
   await mongoose.connect(process.env.MONGO_URI);
@@ -37,4 +42,5 @@ try {
   console.error("MongoDB connection error:", err.message);
 }
 
-server.listen(process.env.PORT, () => console.log("API on", process.env.PORT));
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log("API on", PORT));

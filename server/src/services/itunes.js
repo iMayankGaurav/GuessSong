@@ -1,6 +1,6 @@
 // server/src/services/itunes.js
 import { CATEGORIES } from "../config/categories.js";
-import { clean } from "./matcher.js";
+import { clean, artistSet } from "./matcher.js";
 
 const POOL_TTL = 12 * 60 * 60 * 1000;
 const SEARCH_TTL = 10 * 60 * 1000;
@@ -23,6 +23,7 @@ const slim = (t) => ({
     title: t.trackName,
     artist: t.artistName,
     cover: t.artworkUrl100?.replace("100x100", "300x300"),
+    thumb: t.artworkUrl60 || t.artworkUrl100 || t.artworkUrl30,
     previewUrl: t.previewUrl,
 });
 
@@ -43,7 +44,7 @@ export async function getPool(categoryId) {
 
     const seen = new Set(); // remove duplicate versions of the same song
     const tracks = batches.flat().filter((t) => {
-        const key = `${clean(t.title)}|${clean(t.artist)}`;
+        const key = `${clean(t.title)}|${[...artistSet(t.artist)][0] ?? ""}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -61,7 +62,18 @@ export async function searchTracks(q, country = "US") {
     const hit = searchCache.get(key);
     if (hit && Date.now() - hit.at < SEARCH_TTL) return hit.results;
 
-    const results = (await it(q, country, 10)).map(slim).map(({ previewUrl, ...rest }) => rest);
+    const raw = (await it(q, country, 25)).map(slim);
+    const seen = new Set();
+    const results = [];
+    for (const t of raw) {
+        const dedupeKey = `${clean(t.title)}|${[...artistSet(t.artist)][0] ?? ""}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        const { previewUrl: _, ...rest } = t;
+        results.push(rest);
+        if (results.length >= 10) break;
+    }
+
     searchCache.set(key, { at: Date.now(), results });
     if (searchCache.size > 500) searchCache.delete(searchCache.keys().next().value);
     return results;
