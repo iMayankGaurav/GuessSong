@@ -15,7 +15,12 @@ import profileRoutes from "./routes/profile.js";
 
 const app = express();
 app.set("trust proxy", 1);
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "unsafe-none" },
+  })
+);
 
 const configuredClientUrl = (process.env.CLIENT_URL || "http://localhost:5173").replace(/\/$/, "");
 

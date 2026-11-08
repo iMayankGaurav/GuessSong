@@ -15,13 +15,15 @@ export default function LoginButton({ onLogin }) {
                         onLogin(data.user);
                     }
                 } catch (err) {
-                    if (err?.response?.status === 405) {
-                        alert("Backend URL (VITE_API_URL) is not set in Vercel settings! Requests are hitting Vercel instead of Render.");
-                    }
-                    console.error("Backend Google sign-in failed:", err?.response?.data || err?.message || err);
+                    const msg = err?.response?.data?.error || err?.message || "Login request failed";
+                    console.error("Backend Google sign-in failed:", msg, err);
+                    alert("Google Login Error: " + msg);
                 }
             }}
-            onError={() => console.error("Google OAuth dialog failed")}
+            onError={() => {
+                console.error("Google OAuth dialog failed");
+                alert("Google sign-in dialog failed. Check authorized origins in Google Cloud Console.");
+            }}
         />
     );
 }
