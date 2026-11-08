@@ -15,6 +15,9 @@ export default function LoginButton({ onLogin }) {
                         onLogin(data.user);
                     }
                 } catch (err) {
+                    if (err?.response?.status === 405) {
+                        alert("Backend URL (VITE_API_URL) is not set in Vercel settings! Requests are hitting Vercel instead of Render.");
+                    }
                     console.error("Backend Google sign-in failed:", err?.response?.data || err?.message || err);
                 }
             }}

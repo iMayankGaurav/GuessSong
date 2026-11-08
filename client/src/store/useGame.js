@@ -4,7 +4,12 @@ import { api, API_URL } from "../lib/api";
 import { unlock, loadClip, playSlice, stop } from "../audio/engine";
 import { useAuth } from "./useAuth";
 
-const errMsg = (e) => e?.response?.data?.error || e?.message || "Something went wrong";
+const errMsg = (e) => {
+    if (e?.response?.status === 405) {
+        return "Backend URL (VITE_API_URL) is not reaching the frontend. Please verify VITE_API_URL in Vercel Environment Variables and Redeploy.";
+    }
+    return e?.response?.data?.error || e?.message || "Something went wrong";
+};
 
 export const useGame = create((set, get) => ({
     phase: "idle", // idle | loading | playing | revealed | finished | error
