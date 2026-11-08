@@ -6,6 +6,12 @@
     "socket.io-client": "^4.8.4",
     "zustand": "^5.1.0"
   },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
     "tailwindcss": "^4.3.5"
