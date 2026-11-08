@@ -6,7 +6,8 @@ import User from "../models/User.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const googleClientId = (process.env.GOOGLE_CLIENT_ID || "").trim().replace(/^["']|["']$/g, "");
+const googleClient = new OAuth2Client(googleClientId);
 
 const isProd = process.env.NODE_ENV === "production";
 const baseCookie = {
@@ -18,9 +19,13 @@ const baseCookie = {
 router.post("/google", async (req, res) => {
     try {
         const { credential } = req.body;
+        if (!credential) {
+            return res.status(400).json({ error: "Missing credential" });
+        }
+
         const ticket = await googleClient.verifyIdToken({
             idToken: credential,
-            audience: process.env.GOOGLE_CLIENT_ID,
+            audience: googleClientId,
         });
         const p = ticket.getPayload();
 
@@ -33,11 +38,13 @@ router.post("/google", async (req, res) => {
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
             expiresIn: "7d",
         });
+
         res
             .cookie("token", token, { ...baseCookie, maxAge: 7 * 24 * 60 * 60 * 1000 })
-            .json({ user });
-    } catch {
-        res.status(401).json({ error: "Invalid Google token" });
+            .json({ user, token });
+    } catch (err) {
+        console.error("Google auth verification failed:", err);
+        res.status(401).json({ error: err.message || "Invalid Google token" });
     }
 });
 

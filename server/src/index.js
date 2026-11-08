@@ -17,8 +17,30 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(helmet());
 
-const clientUrl = (process.env.CLIENT_URL || "http://localhost:5173").replace(/\/$/, "");
-app.use(cors({ origin: clientUrl, credentials: true }));
+const configuredClientUrl = (process.env.CLIENT_URL || "http://localhost:5173").replace(/\/$/, "");
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // allow curl, server-to-server, mobile
+  if (origin === configuredClientUrl) return true;
+  if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return true;
+  if (/^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) return true;
+  if (/^https:\/\/.*\.vercel\.app$/.test(origin)) return true;
+  return false;
+};
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (isOriginAllowed(origin)) {
+      callback(null, true);
+    } else {
+      console.warn("Blocked by CORS:", origin);
+      callback(new Error("Not allowed by CORS: " + origin));
+    }
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -27,7 +49,7 @@ app.get("/api/health", (_, res) => res.json({ ok: true }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: clientUrl, credentials: true },
+  cors: corsOptions,
 });
 // registerPartySockets(io);
 app.use("/api/auth", authRoutes);

@@ -14,6 +14,11 @@ export const useAuth = create((set) => ({
                 set({ user: null });
             }
         } catch {
+            try {
+                localStorage.removeItem("sg_auth_token");
+            } catch {
+                /* ignore */
+            }
             set({ user: null });
         } finally {
             set({ loading: false });
@@ -25,6 +30,11 @@ export const useAuth = create((set) => ({
             await api.post("/auth/logout");
         } catch {
             /* ignore logout network errors */
+        }
+        try {
+            localStorage.removeItem("sg_auth_token");
+        } catch {
+            /* ignore */
         }
         set({ user: null });
     },
