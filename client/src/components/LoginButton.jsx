@@ -1,36 +1,21 @@
 // client/src/components/LoginButton.jsx
-import { useGoogleLogin } from "@react-oauth/google";
-import { api } from "../lib/api";
+export default function LoginButton() {
+    const handleGoogleLogin = () => {
+        const clientId =
+            import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+            "400093482766-7d683i65votjtfs53d5kui114f1nl8v7.apps.googleusercontent.com";
+        const redirectUri = window.location.origin;
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+            redirectUri
+        )}&response_type=token&scope=openid%20profile%20email&prompt=select_account`;
 
-export default function LoginButton({ onLogin }) {
-    const login = useGoogleLogin({
-        onSuccess: async (tokenResponse) => {
-            try {
-                const { data } = await api.post("/auth/google", {
-                    access_token: tokenResponse.access_token,
-                });
-                if (data?.token) {
-                    localStorage.setItem("sg_auth_token", data.token);
-                }
-                if (data?.user) {
-                    onLogin(data.user);
-                }
-            } catch (err) {
-                const msg = err?.response?.data?.error || err?.message || "Login request failed";
-                console.error("Backend Google sign-in failed:", msg, err);
-                alert("Google Login Error: " + msg);
-            }
-        },
-        onError: (error) => {
-            console.error("Google sign-in error:", error);
-            alert("Google sign-in was canceled or encountered an error.");
-        },
-    });
+        window.location.href = authUrl;
+    };
 
     return (
         <button
             type="button"
-            onClick={() => login()}
+            onClick={handleGoogleLogin}
             className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3.5 py-1.5 text-xs font-semibold text-zinc-200 shadow-sm transition hover:border-zinc-500 hover:bg-zinc-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
         >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
